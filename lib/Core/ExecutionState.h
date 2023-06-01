@@ -268,7 +268,7 @@ public:
   ExecutionState& operator=(ExecutionState &&) noexcept = delete;
   // dtor
   ~ExecutionState();
-
+  // 从当前状态branch出一个新的状态，分配一个新的ID
   ExecutionState *branch();
 
   void pushFrame(KInstIterator caller, KFunction *kf);

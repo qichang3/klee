@@ -116,6 +116,9 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     cur_mergehandler->addOpenState(this);
 }
 
+/**
+ * 从当前状态branch出一个新的状态，分配一个新的ID
+*/
 ExecutionState *ExecutionState::branch() {
   depth++;
 

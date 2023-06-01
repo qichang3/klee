@@ -1049,8 +1049,8 @@ Executor::StatePair Executor::fork(ExecutionState &current, ref<Expr> condition,
   }
 
   if (!isSeeding) {
-    if (replayPath && !isInternal) {
-      klee_message("replayPath test"); //by wqc
+    if (replayPath && !isInternal) {//如果正在进行路径重放并且不是内部路径
+      //klee_message("replayPath test"); //by wqc，这一段没进去
       assert(replayPosition<replayPath->size() &&
              "ran out of branches in replay path mode");
       bool branch = (*replayPath)[replayPosition++];
@@ -1070,12 +1070,12 @@ Executor::StatePair Executor::fork(ExecutionState &current, ref<Expr> condition,
         }
       }
     } else if (res==Solver::Unknown) {
-      klee_message("res == Unknown"); //by wqc
+      //klee_message("res == Unknown"); //by wqc，这里进去了
       assert(!replayKTest && "in replay mode, only one branch can be true.");
       
-      if (!branchingPermitted(current)) {
+      if (!branchingPermitted(current)) { //当前状态不允许branching或者forking了
         TimerStatIncrementer timer(stats::forkTime);
-        if (theRNG.getBool()) {
+        if (theRNG.getBool()) { //随机数生成器随机选择求解结果是true还是false
           addConstraint(current, condition);
           res = Solver::True;        
         } else {
@@ -1147,12 +1147,12 @@ Executor::StatePair Executor::fork(ExecutionState &current, ref<Expr> condition,
   } else {
     //klee_message("tow sub states are forked!!!"); //by wqc
     TimerStatIncrementer timer(stats::forkTime);
-    ExecutionState *falseState, *trueState = &current;
+    ExecutionState *falseState, *trueState = &current; //truestate指向current状态相同的内存地址，stateID和truestate一样
 
     ++stats::forks;
 
-    falseState = trueState->branch();
-    addedStates.push_back(falseState);
+    falseState = trueState->branch(); //falseState是从trueState branch出的一个新的状态，state ID和trueState不一样
+    addedStates.push_back(falseState); //实际产生的新状态就是falseState，trueState和current一样
 
     if (it != seedMap.end()) {
       std::vector<SeedInfo> seeds = it->second;
@@ -1209,8 +1209,8 @@ Executor::StatePair Executor::fork(ExecutionState &current, ref<Expr> condition,
       }
     }
 
-    addConstraint(*trueState, condition);
-    addConstraint(*falseState, Expr::createIsZero(condition));
+    addConstraint(*trueState, condition); //把condition加到trueState的路径约束中
+    addConstraint(*falseState, Expr::createIsZero(condition)); //通过createIsZero函数将condition取反，加入到false分支的路径约束中
 
     // Kinda gross, do we even really still want this option?
     if (MaxDepth && MaxDepth<=trueState->depth) {
@@ -2215,9 +2215,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       assert(bi->getCondition() == bi->getOperand(0) &&
              "Wrong operand index!");
       ref<Expr> cond = eval(ki, 0, state).value;
-      //ExprPPrinter::printOne(llvm::outs(), "the cond in Instruction:Br is ", cond); //打印条件跳转指令中拿到的条件表达式
+      //ExprPPrinter::printOne(llvm::outs(), "the cond in Instruction:Br is ", cond); //打印条件跳转指令中拿到的条件表达式，by wqc
       cond = optimizer.optimizeExpr(cond, false);//拿到分支条件cond并进行优化
-      //ExprPPrinter::printOne(llvm::outs(), "the cond in Instruction:Br is ", cond); //打印优化后条件跳转指令中拿到的条件表达式
+      //ExprPPrinter::printOne(llvm::outs(), "the cond in Instruction:Br is ", cond); //打印优化后条件跳转指令中拿到的条件表达式，by wqc
       //将分支条件（一个布尔表达式的并集）传入求解器进行求解，查看是否两个分支都可满足，可行的分支会返回对应的state实例
       //statePair是一个ExecutionState的pair，应该保存两个分支对应的state分支
       Executor::StatePair branches = fork(state, cond, false, BranchType::Conditional);
@@ -3505,6 +3505,7 @@ void Executor::doDumpStates() {
 klee的核心函数，包含一个解释器的循环
 */
 void Executor::run(ExecutionState &initialState) {
+  
   bindModuleConstants();
 
   // Delay init till now so that ticks don't accrue during optimization and such.
@@ -3579,7 +3580,7 @@ void Executor::run(ExecutionState &initialState) {
 
   std::vector<ExecutionState *> newStates(states.begin(), states.end()); //newstates是新添加的状态，这里states向量中只有initialstate
   searcher->update(0, newStates, std::vector<ExecutionState *>()); //告知searcher有哪些新状态，有哪些状态被移除了，在执行初始状态时，当前状态为initialstate，没有移除的状态
-
+  klee_message("the size of states is %lu", states.size()); //打印全局变量states的size，by wqc
   // main interpreter loop
   while (!states.empty() && !haltExecution) { //主解释器循环
     ExecutionState &state = searcher->selectState(); //searcher根据搜索策略从states中选择一个待执行状态，klee有多种搜索策略，如DFS，BFS，Random等
